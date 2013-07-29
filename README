@@ -1,0 +1,15 @@
+############################################
+#                _         _   _           #
+#       _ __    / \  _   _| |_| |__        #
+#      | '_ \  / _ \| | | | __| '_ \       #
+#      | | | |/ ___ \ |_| | |_| | | |      #
+#      |_| |_/_/   \_\__,_|\__|_| |_|      #
+#                                          #
+#          Oscar Rainford (c) 2013         #
+#                                          #
+############################################
+
+A simple, extendable and modular PHP 
+authentication framework. It is object-orie
+nted and very flexible. It is based on Nick
+Whyte's zAuth class.
