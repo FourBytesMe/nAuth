@@ -1,34 +1,13 @@
 <?php
-#########################################################
-#							#
-#  zAuth Framework					#
-#  Written By Nick Whyte				#
-#  Version 2.0 - The awesome objective one		#
-#  28th December 2011					#
-#  http://www.nickwhyte.com/				#
-#  Licensed Under MIT Licence				#
-#							#
-#########################################################
-#########################################################
-#  See Project Webpage:					#
-#  http://nickwhyte.com/zauth/				#
-#  See Project Tutorial:				#
-#  http://nickwhyte.com/zauth/getting-started/		#
-#########################################################
-
-
-#Copyright (c) 2011 Nick Whyte - nick@nickwhyte.com
+#Copyright (c) 2011-2013 Nick Whyte & Oscar Rainford - me@fourbytes.me
 
 #Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
 #The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
 #THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-
 session_start();
-class zAuth {	
+class nAuth {	
 
 	private $SQL;
 	private $Config;
@@ -128,8 +107,8 @@ class zAuth {
 		#############
 		#   FINAL   #
 		#############
-		$_SESSION['zAuth']['Username'] = $username;
-		$_SESSION['zAuth']['Password'] = $password;
+		$_SESSION['nAuth']['Username'] = $username;
+		$_SESSION['nAuth']['Password'] = $password;
 		setcookie("Username", $username, $expire);
 		setcookie("Password", $password, $expire);
 	}
@@ -138,11 +117,11 @@ class zAuth {
 		#############
 		#   FINAL   #
 		#############
-		if (isset($_SESSION['zAuth']['Username']) && isset($_SESSION['zAuth']['Password'])) {
+		if (isset($_SESSION['nAuth']['Username']) && isset($_SESSION['nAuth']['Password'])) {
 			//the sessions are set,
 			//set the local variables for this function
-			$username = $_SESSION['zAuth']['Username'] ;
-			$password = $_SESSION['zAuth']['Password'];
+			$username = $_SESSION['nAuth']['Username'] ;
+			$password = $_SESSION['nAuth']['Password'];
 			//see if it's all still correct and valid in the DB's
 			if ($this->check($username, $password)) {
 				return true;
@@ -160,8 +139,8 @@ class zAuth {
 			//see if it's all still correct and valid in the DB's (cuz people can edit cookies you know)
 			if ($this->check($username, $password)) {
 				//set the sessions
-				$_SESSION['zAuth']['Username'] = $username;
-				$_SESSION['zAuth']['Password'] = $password;
+				$_SESSION['nAuth']['Username'] = $username;
+				$_SESSION['nAuth']['Password'] = $password;
 				return true;
 			}
 			else {
@@ -204,7 +183,7 @@ class zAuth {
 		#   FINAL   #
 		############# 
 		if (!isset($userID) || $userID == false) {
-			$userID	= $this->username2id($_SESSION['zAuth']['Username']);
+			$userID	= $this->username2id($_SESSION['nAuth']['Username']);
 		}
 		$value = mysql_real_escape_string($value);
 		$sql = "UPDATE `" .$this->SQL['Settings']['SQL_Table'] . "` SET `$table_col` = '$value' WHERE id = $userID;";
@@ -222,7 +201,7 @@ class zAuth {
 		#   FINAL   #
 		############# 
 		if (!isset($userID) || $userID == false) {
-			$userID	= $this->username2id($_SESSION['zAuth']['Username']);
+			$userID	= $this->username2id($_SESSION['nAuth']['Username']);
 		}
 		$account = mysql_real_escape_string($userID);
 		$query 	= @mysql_query("DELETE FROM `" . $this->SQL['Settings']['SQL_Table'] . "` WHERE `id` = '$account';", $this->SQL['Connection']);
@@ -251,7 +230,7 @@ class zAuth {
 		#############
 		if (!isset($userID) || $userID == false) {
 			//get the current user ID
-			$userID	= $this->username2id($_SESSION['zAuth']['Username']);
+			$userID	= $this->username2id($_SESSION['nAuth']['Username']);
 		}
 		if ($password1 == $password2) {
 				//encrypt the password
@@ -282,7 +261,7 @@ class zAuth {
 		#   FINAL   #
 		#############
 		if (!isset($userName) || $userName == false) {
-			$userID	= $this->username2id($_SESSION['zAuth']['Username']);
+			$userID	= $this->username2id($_SESSION['nAuth']['Username']);
 		}
 		else {
 			$userID	= $this->username2id($userName);
@@ -385,7 +364,7 @@ class zAuth {
 		//function returns an array. See getUserDetails() To get a single detail.
 		//user entry is not needed, it gets the current user instead.
 		if (!$user) {
-			$user = $this->username2id($_SESSION['zAuth']['Username']);
+			$user = $this->username2id($_SESSION['nAuth']['Username']);
 		}
 		$query = @mysql_query("SELECT * FROM `".  $this->SQL['Settings']['SQL_Table'] . "` WHERE `id` = $user ;", $this->SQL['Connection']);
 		return	 @mysql_fetch_array($query);
@@ -394,7 +373,7 @@ class zAuth {
 		//Entry of a user ID is required. Use username2id() to convert
 		//user entry is not needed, it gets the current user instead.
 		if (!$user) {
-			$user = $this->username2id($_SESSION['zAuth']['Username']);
+			$user = $this->username2id($_SESSION['nAuth']['Username']);
 		}
 		$query = @mysql_query("SELECT `$column` FROM `".  $this->SQL['Settings']['SQL_Table'] . "` WHERE `id` = $user ;",$this->SQL['Connection']);
 		$row = @mysql_fetch_array($query);
@@ -410,8 +389,8 @@ class zAuth {
 		return true;
 	}
 	private function destory_session() {
-		unset($_SESSION['zAuth']['Username']);
-		unset($_SESSION['zAuth']['Password']);
+		unset($_SESSION['nAuth']['Username']);
+		unset($_SESSION['nAuth']['Password']);
 		return true;
 	}
 	private function destory_cookies() {
@@ -420,11 +399,11 @@ class zAuth {
 		return true;
 	}
 }
-class zAuthVersionControl {
+class nAuthVersionControl {
 	public	$thisversion 		= 2.0;
 	public 	$latestversion;
 	public function Install_Latest_Version() {
-		$xml = simplexml_load_file('http://www.nickwhyte.com/versions/zauth.xml');
+		$xml = simplexml_load_file('http://www.nickwhyte.com/versions/nAuth.xml');
 		$i = 0;
 		foreach ($xml->release as $release) {
 			$urls[$i];
@@ -447,8 +426,8 @@ class zAuthVersionControl {
 		if (floatval($version) > floatval($this->thisversion)) {
 			$var = @file_get_contents($url);
 			if ($var) {
-				copy('zAuth.class.php','zAuth.class.php.backup');
-				$myFile = "zAuth.class.php";
+				copy('nAuth.class.php','nAuth.class.php.backup');
+				$myFile = "nAuth.class.php";
 				$fh = fopen($myFile, 'w');
 				fwrite($fh, $var);
 				return true;
@@ -462,7 +441,7 @@ class zAuthVersionControl {
 		}
 	}
 	public function Latest_Version() {
-		$xml = simplexml_load_file('http://www.nickwhyte.com/versions/zauth.xml');
+		$xml = simplexml_load_file('http://www.nickwhyte.com/versions/nAuth.xml');
 		$i = 0;
 		foreach ($xml->release as $release) {
 			$arr[$i];
