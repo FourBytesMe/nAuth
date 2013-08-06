@@ -295,6 +295,9 @@ class nAuth {
 		//also get min lengths for each column, in an array, BUT, if it's given in int, it applies to all cols. it doesn't have to be set, if it isn't defualts to no min len
 		//let's check the datatype of the min lenths,
 
+		$heads_for_sql = '';
+		$vals_for_sql = '';
+
 		if(!is_array($column_min_lengths)  || !is_array($column_headings) || !is_array($data_to_insert)) {
 			//Invalid Usage, need to parse these as arrays lol.
 			die('You must pass Arrays to the register function. Read documentation online');
@@ -351,7 +354,7 @@ class nAuth {
 						return true;	
 					}
 					else {
-						return 'SQL Insertion Failed';
+						return 'SQL Insertion Failed'.mysql_error();
 					}
 				}
 				else {
