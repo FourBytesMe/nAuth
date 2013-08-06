@@ -51,7 +51,6 @@ class nAuth {
 		//let's set up the SQL Array to store the settings in.
 		$this->SQL['Settings'] = array('SQL_User' => $SQL_User, 'SQL_Password' => $SQL_Password, 'SQL_Server' => $SQL_Server,'SQL_Database' => $SQL_Database, 'SQL_Table' => $SQL_Table);
 		return true;
-
 	}
 
 	/*
@@ -415,7 +414,6 @@ class nAuth {
 	public function logout() {
 		$this->destory_cookies();
 		$this->destory_session();
-		return true;
 	}
 
 	/*
