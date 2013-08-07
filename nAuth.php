@@ -17,39 +17,24 @@ class nAuth {
 	##############################
 
 	/*
-	/ Connects to SQL, will be replaced by __construct() soon.
-	/ 
+	/ Connects to MySQL Server, runs when an nAuth object is created.
+	/ Returns true if a successful MySQL connection is created. Otherwise returns false.
 	*/
-	public function connect_SQL() {
-		// This is the method that connects to an SQL Server. It gets the settings from the SQL array. This must be set before using this method, otherwise, it will return an error
-		if (!isset($this->SQL['Settings'])) { //question if there is an array or not
-			die('You must configure the SQL Settings first'); 	
-		}
-		else {
-			//begin connection process.
-			$this->SQL['Connection'] =  @mysql_connect($this->SQL['Settings']['SQL_Server'], $this->SQL['Settings']['SQL_User'], $this->SQL['Settings']['SQL_Password']);
-			$this->SQL['DB'] 		 =	@mysql_select_db($this->SQL['Settings']['SQL_Database'], $this->SQL['Connection']);
-			if ($this->SQL['Connection']) { //Catch any error that may occur during connection
-				if ($this->SQL['DB']) {
-					return $this->SQL['Connection'];
-				}
-				else {
-					die('Database Connection Could Not Be Established - Could not specified find Database');	
-				}
-			}
-			else {
-				die('Error Connecting To The Database');
-			}	
-		}
-	}
+	public function __construct($SQLSettings) {
+		$this->SQL['CONFIG'] = $SQLSettings;
 
-	/*
-	/ Set the SQL settings.
-	/ 
-	*/
-	public function set_SQL($SQL_User = '', $SQL_Password = '', $SQL_Server = '', $SQL_Database = '', $SQL_Table = '') {
-		//let's set up the SQL Array to store the settings in.
-		$this->SQL['Settings'] = array('SQL_User' => $SQL_User, 'SQL_Password' => $SQL_Password, 'SQL_Server' => $SQL_Server,'SQL_Database' => $SQL_Database, 'SQL_Table' => $SQL_Table);
+		// Begin connection process.
+		$this->SQL['CONNECTION'] =  mysql_connect($this->SQL['CONFIG']['SERVER'], $this->SQL['CONFIG']['USERNAME'], $this->SQL['CONFIG']['PASSWORD']);
+		$this->SQL['DATABASE'] = mysql_select_db($this->SQL['CONFIG']['DATABASE'], $this->SQL['CONNECTION']);
+		if ($this->SQL['CONNECTION']) { //Catch any error that may occur during connection
+			if ($this->SQL['DATABASE']) {
+				return true;
+			} else {
+				return false;	
+			}
+		} else {
+			return false;
+		}	
 		return true;
 	}
 
@@ -57,11 +42,10 @@ class nAuth {
 	/ Close the MySQL session. Soon will be in __destruct().
 	/ 
 	*/
-	public function unset_SQL() {
+	public function __destruct() {
 		//This function is used to unset the SQL array
-		mysql_close($this->SQL['Connection']);
+		mysql_close($this->SQL['CONNECTION']);
 		unset($this->SQL);
-		return true;
 	}
 
 
@@ -162,8 +146,8 @@ class nAuth {
 	private function check($enc_user, $enc_pass) {
 		$enc_pass = mysql_real_escape_string($enc_pass);
 		$enc_user = mysql_real_escape_string($enc_user);
-		$query = "SELECT * FROM `" . $this->SQL['Settings']['SQL_Table'] . "` WHERE `username` = '$enc_user' AND `password` = '$enc_pass';";
-		$query =  @mysql_query($query,$this->SQL['Connection']);
+		$query = "SELECT * FROM `" . $this->SQL['CONFIG']['TABLE'] . "` WHERE `username` = '$enc_user' AND `password` = '$enc_pass';";
+		$query =  @mysql_query($query,$this->SQL['CONNECTION']);
 		$count =  @mysql_num_rows($query);
 		if ($count == 1) {
 			return true;
@@ -188,8 +172,8 @@ class nAuth {
 			$userID	= $this->getIDFromUsername($_SESSION['nAuth']['Username']);
 		}
 		$value = mysql_real_escape_string($value);
-		$sql = "UPDATE `" .$this->SQL['Settings']['SQL_Table'] . "` SET `$table_col` = '$value' WHERE id = $userID;";
-		$query = @mysql_query($sql,$this->SQL['Connection']);
+		$sql = "UPDATE `" .$this->SQL['CONFIG']['TABLE'] . "` SET `$table_col` = '$value' WHERE id = $userID;";
+		$query = @mysql_query($sql,$this->SQL['CONNECTION']);
 		if ($query) {
 			return true;
 		}
@@ -207,7 +191,7 @@ class nAuth {
 			$userID	= $this->getIDFromUsername($_SESSION['nAuth']['Username']);
 		}
 		$account = mysql_real_escape_string($userID);
-		$query 	= @mysql_query("DELETE FROM `" . $this->SQL['Settings']['SQL_Table'] . "` WHERE `id` = '$account';", $this->SQL['Connection']);
+		$query 	= @mysql_query("DELETE FROM `" . $this->SQL['CONFIG']['TABLE'] . "` WHERE `id` = '$account';", $this->SQL['Connection']);
 		if ($query) {
 			return true;
 		}
@@ -222,8 +206,8 @@ class nAuth {
 	*/
 	public function getIDFromUsername($username) {
 		$username = mysql_real_escape_string($username);
-		$sqlll = "SELECT * FROM `" . $this->SQL['Settings']['SQL_Table'] . "` WHERE `username` = '$username';";
-		$query = @mysql_query($sqlll,$this->SQL['Connection']);
+		$sqlll = "SELECT * FROM `" . $this->SQL['CONFIG']['TABLE'] . "` WHERE `username` = '$username';";
+		$query = @mysql_query($sqlll,$this->SQL['CONNECTION']);
 		$row	= @mysql_fetch_array($query);
 		return $row['id'];
 	}
@@ -248,8 +232,8 @@ class nAuth {
 			$userID 	= 	mysql_real_escape_string($userID);
 
 				//insert into the SQL Database.
-			$sql = "UPDATE `" .$this->SQL['Settings']['SQL_Table'] . "` SET `password` = '$password' WHERE id = $userID;";
-			$query = @mysql_query($sql,$this->SQL['Connection']);
+			$sql = "UPDATE `" .$this->SQL['CONFIG']['TABLE'] . "` SET `password` = '$password' WHERE id = $userID;";
+			$query = @mysql_query($sql,$this->SQL['CONNECTION']);
 
 				//handle the errors
 			if ($query) {
@@ -326,8 +310,8 @@ class nAuth {
 					$vals_for_sql .= '\'' . mysql_real_escape_string($val) .'\', ';
 				}
 			}
-			$sqll = "SELECT * FROM `" . $this->SQL['Settings']['SQL_Table'] . "` WHERE `username` = '$username';";
-			$check_if_user = 	@mysql_query($sqll,$this->SQL['Connection']);
+			$sqll = "SELECT * FROM `" . $this->SQL['CONFIG']['TABLE'] . "` WHERE `username` = '$username';";
+			$check_if_user = 	@mysql_query($sqll,$this->SQL['CONNECTION']);
 			$check_count	=	@mysql_num_rows($check_if_user);
 			if ($check_count > 0) {
 				return 'User Exists';
@@ -347,8 +331,8 @@ class nAuth {
 				if ($pass1 == $pass2) {
 					//let's craft that query
 					$password = md5(sha1($pass1));
-					$sql = "INSERT INTO `" . $this->SQL['Settings']['SQL_Table'] . "` ($heads_for_sql, `password`) VALUES ($vals_for_sql, '$password');";
-					$query = @mysql_query($sql,$this->SQL['Connection']);
+					$sql = "INSERT INTO `" . $this->SQL['CONFIG']['TABLE'] . "` ($heads_for_sql, `password`) VALUES ($vals_for_sql, '$password');";
+					$query = @mysql_query($sql,$this->SQL['CONNECTION']);
 					if ($query) {
 						return true;	
 					}
@@ -384,7 +368,7 @@ class nAuth {
 		if (!$user) {
 			$user = $this->getIDFromUsername($_SESSION['nAuth']['Username']);
 		}
-		$query = @mysql_query("SELECT * FROM `".  $this->SQL['Settings']['SQL_Table'] . "` WHERE `id` = $user ;", $this->SQL['Connection']);
+		$query = @mysql_query("SELECT * FROM `".  $this->SQL['CONFIG']['TABLE'] . "` WHERE `id` = $user ;", $this->SQL['Connection']);
 		return	 @mysql_fetch_array($query);
 	}
 
@@ -398,7 +382,7 @@ class nAuth {
 		if (!$user) {
 			$user = $this->getIDFromUsername($_SESSION['nAuth']['Username']);
 		}
-		$query = @mysql_query("SELECT `$column` FROM `".  $this->SQL['Settings']['SQL_Table'] . "` WHERE `id` = $user ;",$this->SQL['Connection']);
+		$query = @mysql_query("SELECT `$column` FROM `".  $this->SQL['CONFIG']['TABLE'] . "` WHERE `id` = $user ;",$this->SQL['CONNECTION']);
 		$row = @mysql_fetch_array($query);
 		return $row[$column];
 	}
