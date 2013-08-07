@@ -7,13 +7,13 @@
 
 
 session_start();
-class nAuth {	
+class nAuth {
 
 	private $SQL;
 	private $Config;
 
 	##############################
-	# SQL Management Methods     #
+	# Class Construct/Destruct   #
 	##############################
 
 	/*
@@ -21,72 +21,83 @@ class nAuth {
 	/ Returns true if a successful MySQL connection is created. Otherwise returns false.
 	*/
 	public function __construct($SQLSettings) {
+		// Set the global MySQL config settings.
 		$this->SQL['CONFIG'] = $SQLSettings;
 
 		// Begin connection process.
-		$this->SQL['CONNECTION'] =  mysql_connect($this->SQL['CONFIG']['SERVER'], $this->SQL['CONFIG']['USERNAME'], $this->SQL['CONFIG']['PASSWORD']);
-		$this->SQL['DATABASE'] = mysql_select_db($this->SQL['CONFIG']['DATABASE'], $this->SQL['CONNECTION']);
+		$this->SQL['CONNECTION'] =  new mysqli($this->SQL['CONFIG']['SERVER'], $this->SQL['CONFIG']['USERNAME'], $this->SQL['CONFIG']['PASSWORD'], $this->SQL['CONFIG']['DATABASE']);
 		if ($this->SQL['CONNECTION']) { //Catch any error that may occur during connection
-			if ($this->SQL['DATABASE']) {
-				return true;
-			} else {
-				return false;	
-			}
+			return true;
 		} else {
-			return false;
-		}	
-		return true;
+			die("Failed to connect to MySQL: (" . $mysqli->connect_errno . ") " . $mysqli->connect_error);
+		}
 	}
 
 	/*
-	/ Close the MySQL session. Soon will be in __destruct().
-	/ 
+	/ Close the MySQL session.
+	/
 	*/
 	public function __destruct() {
 		//This function is used to unset the SQL array
-		mysql_close($this->SQL['CONNECTION']);
-		unset($this->SQL);
+		$this->SQL['CONNECTION']->close();
 	}
 
 
 	##############################
-	# Login Methods              #
+	# Login/Logout Methods       #
 	##############################
 
 	/*
 	/ Set session variabls with specified user details
-	/ 
+	/
 	*/
-	public function login($credentials_array = '', $session_time_seconds = 86400, $enc_password = false) {
+	public function login($credentialsArray = false, $sessionTime = 86400, $encryptedPassword = false) {
 		//Get the credentials in an array, also get the session time in seconds, and an encrypted password if set.
-		//This function will return true if the username and password are correct. 
+		//This function will return true if the username and password are correct.
 
-		//set the time that the cookie will expire.
-		$expire = time() + $session_time_seconds;
-		//grab the username
-		$username = $credentials_array[0];
+		// Set the valid session time, default is 1 day.
+		$expireTime = time() + $sessionTime;
 
-		//determine whether or not to use the username, or the enc_username
-		if ($enc_password) {
-			$password = $enc_password;
+		// Make sure the credentials array has been set
+		if($credentialsArray) {
+			$username = $credentialsArray[0];
+
+			// Check if an already encrypted password has been set.
+			if ($encryptedPassword) {
+				$password = $encryptedPassword;
+			} else {
+				$password = md5(sha1($credentialsArray[1]));
+			}
+
+			if ($this->checkAccount($username,$password)) {
+				// Credentials are valid, log them in!
+				$this->session($username, $password, $expireTime);
+				return true;
+			} else {
+				// Unable to login, bad credentials.
+				return false;
+			}
 		} else {
-			$password = md5(sha1($credentials_array[1]));
-		}
-		//get the check results,
-		if ($this->check($username,$password)) {
-			//they are logged in, so let's set their session up.
-			$this->session($username, $password, $expire);
-			return true;
-		}
-		else {
-			//not able to be logged in. bad credentials
-			return false;	
+			return false;
 		}
 	}
 
 	/*
+	/ Log's out the current user.
+	/ Destroys the PHP session and cookies.
+	*/
+	public function logout() {
+		$this->destoryCookies();
+		$this->destorySession();
+	}
+
+	##############################
+	# Session Management Methods #
+	##############################
+
+	/*
 	/ Sets all of the session information and cookies.
-	/ 
+	/
 	*/
 	private function session($username, $password, $expire) {
 		//going to set all the sessions and the expiry of the sessions.
@@ -100,7 +111,7 @@ class nAuth {
 
 	/*
 	/ Check if user is logged in.
-	/ 
+	/
 	*/
 	public function manage_open_login() {
 		//This function is in charge of finding out if a user is logged in after a session timeout, or a page click
@@ -111,25 +122,25 @@ class nAuth {
 			$username = $_SESSION['nAuth']['Username'] ;
 			$password = $_SESSION['nAuth']['Password'];
 			//see if it's all still correct and valid in the DB's
-			if ($this->check($username, $password)) {
+			if ($this->checkAccount($username, $password)) {
 				return true;
 			} else {
 				$this->logout();
-				return false;	
+				return false;
 			}
 		} elseif (isset($_COOKIE["Username"]) && isset($_COOKIE["Password"])) {
 			//well, the user has still got cookies at least, these can be used.
 			$username = $_COOKIE["Username"];
 			$password = $_COOKIE["Password"];
 			//see if it's all still correct and valid in the DB's (cuz people can edit cookies you know)
-			if ($this->check($username, $password)) {
+			if ($this->checkAccount($username, $password)) {
 				//set the sessions
 				$_SESSION['nAuth']['Username'] = $username;
 				$_SESSION['nAuth']['Password'] = $password;
 				return true;
 			} else {
 				//user doesn't exit
-				return false;	
+				return false;
 				$this->logout();
 			}
 
@@ -139,31 +150,13 @@ class nAuth {
 		}
 	}
 
-	/*
-	/ Returns true if specified username exists.
-	/ 
-	*/
-	private function check($enc_user, $enc_pass) {
-		$enc_pass = mysql_real_escape_string($enc_pass);
-		$enc_user = mysql_real_escape_string($enc_user);
-		$query = "SELECT * FROM `" . $this->SQL['CONFIG']['TABLE'] . "` WHERE `username` = '$enc_user' AND `password` = '$enc_pass';";
-		$query =  @mysql_query($query,$this->SQL['CONNECTION']);
-		$count =  @mysql_num_rows($query);
-		if ($count == 1) {
-			return true;
-		}
-		else {
-			return false;	
-		}
-	}
-
 	##############################
 	# Account Management Methods #
 	##############################
 
 	/*
 	/ Modifies a certain row of the specified user (or current user if no user is specified)
-	/ 
+	/
 	*/
 	public function modifyUserRow($table_col, $value, $userID = false) {
 		//Edit a user row in the DB. Defaults to current user if no User ID is given
@@ -171,50 +164,50 @@ class nAuth {
 		if (!isset($userID) || $userID == false) {
 			$userID	= $this->getIDFromUsername($_SESSION['nAuth']['Username']);
 		}
-		$value = mysql_real_escape_string($value);
+		$value = $this->SQL['CONNECTION']->real_escape_string($value);
 		$sql = "UPDATE `" .$this->SQL['CONFIG']['TABLE'] . "` SET `$table_col` = '$value' WHERE id = $userID;";
-		$query = @mysql_query($sql,$this->SQL['CONNECTION']);
+		$query = $this->SQL['CONNECTION']->query($sql);
 		if ($query) {
 			return true;
 		}
 		else {
-			return 'Error in Query';	
+			return 'Error in Query';
 		}
 	}
 
 	/*
 	/ Deletes the account of the specified user ID.
-	/ 
+	/
 	*/
 	public function deleteAccount($userID) {
 		if (!isset($userID) || $userID == false) {
 			$userID	= $this->getIDFromUsername($_SESSION['nAuth']['Username']);
 		}
-		$account = mysql_real_escape_string($userID);
-		$query 	= @mysql_query("DELETE FROM `" . $this->SQL['CONFIG']['TABLE'] . "` WHERE `id` = '$account';", $this->SQL['Connection']);
+		$account = $this->SQL['CONNECTION']->real_escape_string($userID);
+		$query 	= $this->SQL['CONNECTION']->query("DELETE FROM `" . $this->SQL['CONFIG']['TABLE'] . "` WHERE `uid` = '$account';");
 		if ($query) {
 			return true;
 		}
 		else {
-			return false;	
+			return false;
 		}
 	}
 
 	/*
 	/ Return's the ID of the username specified
-	/ 
+	/
 	*/
 	public function getIDFromUsername($username) {
-		$username = mysql_real_escape_string($username);
-		$sqlll = "SELECT * FROM `" . $this->SQL['CONFIG']['TABLE'] . "` WHERE `username` = '$username';";
-		$query = @mysql_query($sqlll,$this->SQL['CONNECTION']);
-		$row	= @mysql_fetch_array($query);
-		return $row['id'];
+		$username = $this->SQL['CONNECTION']->real_escape_string($username);
+		$sql = "SELECT * FROM `" . $this->SQL['CONFIG']['TABLE'] . "` WHERE `username` = '$username';";
+		$query = $this->SQL['CONNECTION']->query($sql);
+		$row	= $query->fetch_assoc();
+		return $row['uid'];
 	}
 
 	/*
 	/ Set's the password of a specified user by ID.
-	/ 
+	/
 	*/
 	public function setPasswordByID($password1, $password2, $userID = false) {
 		//This function allows updating of a user's password.
@@ -228,29 +221,29 @@ class nAuth {
 			$password =  md5(sha1($password1));
 
 				//Clean up inputs before insertion and encryption
-			$password 	= 	mysql_real_escape_string($password);
-			$userID 	= 	mysql_real_escape_string($userID);
+			$password 	= 	$this->SQL['CONNECTION']->real_escape_string($password);
+			$userID 	= 	$this->SQL['CONNECTION']->real_escape_string($userID);
 
 				//insert into the SQL Database.
 			$sql = "UPDATE `" .$this->SQL['CONFIG']['TABLE'] . "` SET `password` = '$password' WHERE id = $userID;";
-			$query = @mysql_query($sql,$this->SQL['CONNECTION']);
+			$query = $this->SQL['CONNECTION']->query($sql);
 
 				//handle the errors
 			if ($query) {
 				return true;
 			}
 			else {
-				return 'Error in Query';	
+				return 'Error in Query';
 			}
 		}
 		else{
-			return 'Passwords Don\'t Match';	
+			return 'Passwords Don\'t Match';
 		}
 	}
 
 	/*
 	/ Set's the password of a specified user by username.
-	/ 
+	/
 	*/
 	public function setPasswordByUsername($password1, $password2, $userName = false) {
 
@@ -269,8 +262,8 @@ class nAuth {
 	##############################
 
 	/*
-	/ Registers a user with the specified data.
-	/ 
+	/ Create a user with the specified data.
+	/
 	*/
 	public function register($data_to_insert, $column_headings, $column_min_lengths) {
 		//get data in an array
@@ -289,8 +282,8 @@ class nAuth {
 			//inserted columns are all the same length, begin sorting the inserted data :3
 			foreach ($column_headings as $key => $val) {
 				if ($val == 'password') { $p1K = $key; }
-				elseif ($val == 'password2') { $p2K = $key; }	
-				elseif ($val == 'username') { $uK = $key; }			
+				elseif ($val == 'password2') { $p2K = $key; }
+				elseif ($val == 'username') { $uK = $key; }
 				if ($val != 'password2' && $val != 'password') {
 					$heads_for_sql .= '`' . $val . '`,';
 				}
@@ -298,28 +291,28 @@ class nAuth {
 			foreach ($data_to_insert as $key => $val) {
 				//loop through the data to insert, and extract passwords and usernames
 				if ($key == $p1K) {
-					$pass1 = mysql_real_escape_string($val);
+					$pass1 = $this->SQL['CONNECTION']->real_escape_string($val);
 				}
 				else if ($key == $p2K) {
-					$pass2 = mysql_real_escape_string($val);	
+					$pass2 = $this->SQL['CONNECTION']->real_escape_string($val);
 				}
 				else if ($key == $uK) {
-					$username = mysql_real_escape_string($val);	
+					$username = $this->SQL['CONNECTION']->real_escape_string($val);
 				}
 				if ($key != $p2K && $key != $p1K) {
-					$vals_for_sql .= '\'' . mysql_real_escape_string($val) .'\', ';
+					$vals_for_sql .= '\'' . $this->SQL['CONNECTION']->real_escape_string($val) .'\', ';
 				}
 			}
-			$sqll = "SELECT * FROM `" . $this->SQL['CONFIG']['TABLE'] . "` WHERE `username` = '$username';";
-			$check_if_user = 	@mysql_query($sqll,$this->SQL['CONNECTION']);
-			$check_count	=	@mysql_num_rows($check_if_user);
-			if ($check_count > 0) {
+			$sql = "SELECT * FROM `" . $this->SQL['CONFIG']['TABLE'] . "` WHERE `username` = '$username';";
+			$query = 	$this->SQL['CONNECTION']->query($sql);
+			$count	=	$query->num_rows;
+			if ($count > 0) {
 				return 'User Exists';
 			}
 			$heads_for_sql = preg_replace('/(.*),/','$1',$heads_for_sql);
 			$vals_for_sql = preg_replace('/(.*),/','$1',$vals_for_sql);
 
-			//begin validation section. 
+			//begin validation section.
 			$col_count = count($column_headings) - 1;
 			$valid		= true;
 			for ($i = 0; $i <= $col_count; $i++) {
@@ -332,16 +325,16 @@ class nAuth {
 					//let's craft that query
 					$password = md5(sha1($pass1));
 					$sql = "INSERT INTO `" . $this->SQL['CONFIG']['TABLE'] . "` ($heads_for_sql, `password`) VALUES ($vals_for_sql, '$password');";
-					$query = @mysql_query($sql,$this->SQL['CONNECTION']);
+					$query = $this->SQL['CONNECTION']->query($sql);
 					if ($query) {
-						return true;	
+						return true;
 					}
 					else {
-						return 'SQL Insertion Failed'.mysql_error();
+						return 'SQL Insertion Failed'.$this->SQL['CONNECTION']->error();
 					}
 				}
 				else {
-					return 'passwords';	
+					return 'passwords';
 				}
 			}
 			else {
@@ -362,49 +355,61 @@ class nAuth {
 
 	/*
 	/ Returns a users details in an array.
-	/ 
+	/
 	*/
 	public function getUserDetailsArray($user = false) {
 		if (!$user) {
 			$user = $this->getIDFromUsername($_SESSION['nAuth']['Username']);
 		}
-		$query = @mysql_query("SELECT * FROM `".  $this->SQL['CONFIG']['TABLE'] . "` WHERE `id` = $user ;", $this->SQL['Connection']);
-		return	 @mysql_fetch_array($query);
+		$sql = "SELECT * FROM `".  $this->SQL['CONFIG']['TABLE'] . "` WHERE `uid` = $user ;";
+		$query = $this->SQL['CONNECTION']->query($sql);
+		return $query->fetch_assoc();
 	}
 
 	/*
 	/ Returns a users details by column.
-	/ 
+	/
 	*/
-	public function getUserDetails($column, $user = false) {
+	public function getUserDetails($column, $userID = false) {
 		//Entry of a user ID is required. Use getIDFromUsername() to convert
 		//user entry is not needed, it gets the current user instead.
-		if (!$user) {
-			$user = $this->getIDFromUsername($_SESSION['nAuth']['Username']);
+		if (!$userID) {
+			$userID = $this->getIDFromUsername($_SESSION['nAuth']['Username']);
 		}
-		$query = @mysql_query("SELECT `$column` FROM `".  $this->SQL['CONFIG']['TABLE'] . "` WHERE `id` = $user ;",$this->SQL['CONNECTION']);
-		$row = @mysql_fetch_array($query);
+		$sql = "SELECT `$column` FROM `".  $this->SQL['CONFIG']['TABLE'] . "` WHERE `uid` = $userID ;";
+		$query = $this->SQL['CONNECTION']->query($sql);
+		$row = $query->fetch_assoc();
 		return $row[$column];
 	}
 
+	/*
+	/ Returns true if the specified username and encrypted password are in the database. Otherwise false.
+	/
+	*/
+	private function checkAccount($enc_user, $enc_pass) {
+		$enc_pass = $this->SQL['CONNECTION']->real_escape_string($enc_pass);
+		$enc_user = $this->SQL['CONNECTION']->real_escape_string($enc_user);
+		$sql = "SELECT * FROM `" . $this->SQL['CONFIG']['TABLE'] . "` WHERE `username` = '$enc_user' AND `password` = '$enc_pass';";
+		$query =  $this->SQL['CONNECTION']->query($sql);
+		$count =  $query->num_rows;
+		if ($count == 1) {
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
+
+
 	###############################
 	# Misc Other Methods  		  #
-	###############################	
-
-	/*
-	/ Log's out the current user.
-	/ 
-	*/
-	public function logout() {
-		$this->destory_cookies();
-		$this->destory_session();
-	}
+	###############################
 
 	/*
 	/ Destroys the nAuth session, used when logging out.
-	/ 
+	/
 	*/
-	private function destory_session() {
+	private function destorySession() {
 		unset($_SESSION['nAuth']['Username']);
 		unset($_SESSION['nAuth']['Password']);
 		return true;
@@ -412,11 +417,11 @@ class nAuth {
 
 	/*
 	/ Destroys the nAuth cookie variables, used when logging out.
-	/ 
+	/
 	*/
-	private function destory_cookies() {
+	private function destoryCookies() {
 		setcookie("Username","",0);
-		setcookie("Password","",0);	
+		setcookie("Password","",0);
 		return true;
 	}
 }
