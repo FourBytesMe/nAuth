@@ -113,7 +113,7 @@ class nAuth {
 	/ Check if user is logged in.
 	/
 	*/
-	public function manage_open_login() {
+	public function checkSession() {
 		//This function is in charge of finding out if a user is logged in after a session timeout, or a page click
 
 		if (isset($_SESSION['nAuth']['Username']) && isset($_SESSION['nAuth']['Password'])) {
